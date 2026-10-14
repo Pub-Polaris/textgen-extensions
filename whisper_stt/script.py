@@ -82,9 +82,9 @@ def reload_whispermodel(whisper_model_name: str, whisper_language: str, device: 
             params.update({"whisper_model": whisper_model_name})
             if ".en" in whisper_model_name:
                 whisper_language = "english"
-            audio_update = gr.Audio.update(interactive=True)
+            audio_update = gr.update(interactive=True)
         else:
-            audio_update = gr.Audio.update(interactive=False)
+            audio_update = gr.update(interactive=False)
         return [whisper_model_name, whisper_language, str(device), audio_update]
 
 

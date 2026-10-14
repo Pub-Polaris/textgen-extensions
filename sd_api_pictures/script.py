@@ -88,7 +88,7 @@ picture_response = False  # specifies if the next model response should appear a
 def remove_surrounded_chars(string):
     # this expression matches to 'as few symbols as possible (0 upwards) between any asterisks' OR
     # 'as few symbols as possible (0 upwards) between an asterisk and the end of the string'
-    return re.sub('\*[^\*]*?(\*|$)', '', string)
+    return re.sub(r'\*[^\*]*?(\*|$)', '', string)
 
 
 def triggers_are_in(string):
@@ -248,7 +248,7 @@ def toggle_generation(*args):
 def filter_address(address):
     address = address.strip()
     # address = re.sub('http(s)?:\/\/|\/$','',address) # remove starting http:// OR https:// OR trailing slash
-    address = re.sub('\/$', '', address)  # remove trailing /s
+    address = re.sub(r'/$', '', address)  # remove trailing /s
     if not address.startswith('http'):
         address = 'http://' + address
     return address
@@ -267,7 +267,7 @@ def SD_api_address_update(address):
     except Exception:
         msg = "❌ No SD API endpoint on:"
 
-    return gr.Textbox.update(label=msg)
+    return gr.update(label=msg)
 
 
 def custom_css():

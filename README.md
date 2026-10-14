@@ -72,6 +72,22 @@ set TEXTGEN_EMBEDDING_MODEL=BAAI/bge-large-zh-v1.5     # 或本地目录路径
 
 设了就不走 BGE-M3 的装配逻辑。
 
+## 三、Gradio 4 兼容性修复
+
+本机装的是 `gradio 4.37.2+custom.21`，它移除了 Gradio 3 的**组件级 `.update()`**。对全部 14 个扩展做了实证审计（把每处 `gr.X(...)` 的构造参数逐一对照实际的 `inspect.signature`，字面量参数的直接真造一遍），全仓库确认只有 3 处需要改：
+
+| 文件 | 行 | 改动 |
+|---|---|---|
+| `whisper_stt/script.py` | 85 | `gr.Audio.update(interactive=True)` → `gr.update(interactive=True)` |
+| `whisper_stt/script.py` | 87 | `gr.Audio.update(interactive=False)` → `gr.update(interactive=False)` |
+| `sd_api_pictures/script.py` | 270 | `gr.Textbox.update(label=msg)` → `gr.update(label=msg)` |
+
+其余 52 处 `gr.*` 构造全部实测通过（没有 `gr.Box`、没有失效类名、没有非法参数），也没有 `.style()` 用法。
+
+`whisper_stt` 那两处是**必崩**的：改设备下拉框或换模型就会 `AttributeError: type object 'Audio' has no attribute 'update'`。修完已实测跑通 `reload_whispermodel`，`xpu` / `cpu` / `none` 三条分支都返回合法更新字典。
+
+另外修了 `sd_api_pictures/script.py` 两处会让 Python 3.12+ 报 `SyntaxWarning: invalid escape sequence` 的非原始字符串（第 91、251 行），regex 行为经用例比对完全等价。
+
 ## 注意事项
 
 - 需要 PyTorch 构建带 XPU 支持（存在 `torch.xpu`），本支线按 `torch 2.9.0+xpu` 验证。旧版 PyTorch 没有 `torch.xpu`，`hasattr` 判断会安全回退到 CPU。
