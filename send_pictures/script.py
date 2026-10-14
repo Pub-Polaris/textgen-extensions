@@ -14,7 +14,7 @@ input_hijack = {
     'value': ["", ""]
 }
 
-# 设备回退规则：XPU -> CPU（不再检测 CUDA）
+# 设备：XPU -> CPU
 device = "xpu" if hasattr(torch, "xpu") and torch.xpu.is_available() else "cpu"
 
 processor = BlipProcessor.from_pretrained("Salesforce/blip-image-captioning-base")

@@ -20,7 +20,7 @@ params = {
     'language': 'English',
     'model_id': 'v3_en',
     'sample_rate': 48000,
-    # 设备回退规则：XPU -> CPU（不再检测 CUDA）
+    # 设备：XPU -> CPU
     'device': 'xpu' if hasattr(torch, 'xpu') and torch.xpu.is_available() else 'cpu',
     'show_text': False,
     'autoplay': True,

@@ -13,7 +13,7 @@ posthog.capture = lambda *args, **kwargs: None
 
 
 def _build_embedder():
-    """嵌入模型：本地 BGE-M3 优先；设备回退规则 XPU -> CPU（不再检测 CUDA）。"""
+    """嵌入模型：本地 BGE-M3 优先；设备：XPU -> CPU。"""
     device = "xpu" if hasattr(torch, "xpu") and torch.xpu.is_available() else "cpu"
     return embedding_functions.SentenceTransformerEmbeddingFunction(
         ensure_embedding_model(),

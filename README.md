@@ -10,7 +10,7 @@
 device = "xpu" if hasattr(torch, "xpu") and torch.xpu.is_available() else "cpu"
 ```
 
-即：优先使用 Intel XPU，不可用时回退 CPU。**不再检测 CUDA**。
+即：优先使用 Intel XPU，不可用时回退 CPU。本支线的目标平台就是 Intel 蓝营。
 
 | 文件 | 改动点 |
 |---|---|
@@ -74,8 +74,7 @@ set TEXTGEN_EMBEDDING_MODEL=BAAI/bge-large-zh-v1.5     # 或本地目录路径
 
 ## 注意事项
 
-- 需要 PyTorch 构建带 XPU 支持（存在 `torch.xpu`）。旧版 PyTorch 没有 `torch.xpu`，`hasattr` 判断会安全回退到 CPU。
-- 若你的环境只有 NVIDIA CUDA，本改动会让相关扩展回退到 CPU，请按需自行调整。
+- 需要 PyTorch 构建带 XPU 支持（存在 `torch.xpu`），本支线按 `torch 2.9.0+xpu` 验证。旧版 PyTorch 没有 `torch.xpu`，`hasattr` 判断会安全回退到 CPU。
 - **`hf-mirror.com` 会拒绝 urllib 的默认 User-Agent（403）**，所以下载统一带浏览器 UA；不带 UA 时它会在测速阶段就被判为不可用。
 - 嵌入维度从 768 变成 1024。`superbooga` / `superboogav2` 用的都是内存版 `chromadb.Client`，重启即重建，不涉及磁盘索引迁移。
 - `superboogav2/nltk_data/` 是上游随仓库携带的数据文件，原样保留。

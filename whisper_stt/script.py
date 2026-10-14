@@ -23,7 +23,7 @@ params = {
     'auto_submit': True
 }
 
-# 设备回退规则：XPU -> CPU（不再检测 CUDA）
+# 设备：XPU -> CPU
 startup_device = torch.device('xpu' if hasattr(torch, 'xpu') and torch.xpu.is_available() else 'cpu')
 WHISPERMODEL = whisper.load_model(params['whisper_model'], device=startup_device)
 

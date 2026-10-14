@@ -93,7 +93,7 @@ class ChromaCollector():
 
         self.name = name
 
-        # 设备回退规则：XPU -> CPU（不再检测 CUDA）
+        # 设备：XPU -> CPU
         device = "xpu" if hasattr(torch, "xpu") and torch.xpu.is_available() else "cpu"
 
         # 嵌入模型：本地 BGE-M3 优先；缺失时才测速并从镜像回退下载

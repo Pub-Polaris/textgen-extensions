@@ -24,7 +24,7 @@ params = {
     "voice": "female_01.wav",
     "language": "English",
     "model_name": "tts_models/multilingual/multi-dataset/xtts_v2",
-    # 设备回退规则：XPU -> CPU（不再检测 CUDA）
+    # 设备：XPU -> CPU
     "device": "xpu" if hasattr(torch, "xpu") and torch.xpu.is_available() else "cpu"
 }
 
