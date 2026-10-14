@@ -88,6 +88,26 @@ set TEXTGEN_EMBEDDING_MODEL=BAAI/bge-large-zh-v1.5     # 或本地目录路径
 
 另外修了 `sd_api_pictures/script.py` 两处会让 Python 3.12+ 报 `SyntaxWarning: invalid escape sequence` 的非原始字符串（第 91、251 行），regex 行为经用例比对完全等价。
 
+## 四、superboogav2：API 调用崩溃修复
+
+用 OpenAI / Anthropic 兼容端点跑模型时，superboogav2 会在生成 prompt 阶段崩掉：
+
+```
+TypeError: argument should be a str or an os.PathLike object where __fspath__ returns a str, not 'NoneType'
+  ... superboogav2/chat_handler.py → _get_names → load_character_memoized → sanitize_filename(None)
+```
+
+根因**不是**本仓库改动引入的：`modules/api/completions.py` 用原始请求体当 state（`generate_params = body`），只把解析好的 `name1` / `name2` 写回去，**没有写回 `character`**，于是 `state['character']` 是「键存在、值为 None」。而 `_get_names` 用的是 `state.get('character', default)` —— `.get()` 在值为 `None` 时返回 `None` 而不是默认值。
+
+`superboogav2/chat_handler.py::_get_names` 的改动：
+
+- `state.get('character', default)` → `state.get('character') or default`，让 `None` 也走回退
+- 给 `load_character_memoized` 加 `try/except`：角色文件缺失时 `load_character` 会 `raise ValueError`，现在降级用 state 里的名字，不再打断整轮推理
+
+实测（真实 `chat_handler` + 真实角色文件）：`character=None` 由 `TypeError` 变为正常返回；角色文件缺失由 `ValueError` 变为优雅降级。
+
+> 遗留：`_get_names` 每次都调用 `load_character`，而后者会删除并重建 pfp 缓存（`generate_pfp_cache`）。纯 API 场景下这是多余的 I/O，本次未改。
+
 ## 注意事项
 
 - 需要 PyTorch 构建带 XPU 支持（存在 `torch.xpu`），本支线按 `torch 2.9.0+xpu` 验证。旧版 PyTorch 没有 `torch.xpu`，`hasattr` 判断会安全回退到 CPU。

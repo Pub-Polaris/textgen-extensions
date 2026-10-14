@@ -44,11 +44,23 @@ def _format_single_exchange(name, text):
 
 
 def _get_names(state: dict):
-    default_char = shared.settings.get('character', "Assistant")
-    default_user = shared.settings.get('name1', "You")
-    character = state.get('character', default_char)
-    user_name = state.get('name1', default_user)
-    user_name, bot_name, _, _, _ = load_character_memoized(character, user_name, '')
+    default_char = shared.settings.get('character') or "Assistant"
+    default_user = shared.settings.get('name1') or "You"
+
+    # 这里必须用 `or` 而不是 `get(key, default)`：OpenAI / Anthropic 兼容端点
+    # （modules/api/completions.py）不会把解析出来的角色写回 state，state 里的
+    # 'character' 是「键存在、值为 None」。get() 遇到 None 会原样返回 None，
+    # 于是 load_character_memoized(None, ...) -> sanitize_filename(None)
+    # -> Path(None) 抛 TypeError，整轮推理直接挂掉。
+    character = state.get('character') or default_char
+    user_name = state.get('name1') or default_user
+
+    try:
+        user_name, bot_name, _, _, _ = load_character_memoized(character, user_name, '')
+    except Exception as exc:
+        # 角色文件缺失/损坏时也不要打断整轮推理，退回 state 里已有的名字。
+        logger.warning(f'superboogav2: could not load character "{character}" ({exc}); falling back to state names')
+        return user_name, state.get('name2') or character
 
     return user_name, bot_name
 
