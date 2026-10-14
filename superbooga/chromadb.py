@@ -2,14 +2,23 @@ import random
 
 import chromadb
 import posthog
+import torch
 from chromadb.config import Settings
 from chromadb.utils import embedding_functions
+
+from extensions.embedding_source import ensure_embedding_model
 
 # Intercept calls to posthog
 posthog.capture = lambda *args, **kwargs: None
 
 
-embedder = embedding_functions.SentenceTransformerEmbeddingFunction("sentence-transformers/all-mpnet-base-v2")
+def _build_embedder():
+    """嵌入模型：本地 BGE-M3 优先；设备回退规则 XPU -> CPU（不再检测 CUDA）。"""
+    device = "xpu" if hasattr(torch, "xpu") and torch.xpu.is_available() else "cpu"
+    return embedding_functions.SentenceTransformerEmbeddingFunction(
+        ensure_embedding_model(),
+        device=device,
+    )
 
 
 class ChromaCollector():
@@ -17,8 +26,9 @@ class ChromaCollector():
         name = ''.join(random.choice('ab') for _ in range(10))
 
         self.name = name
+        self.embedder = _build_embedder()
         self.chroma_client = chromadb.Client(Settings(anonymized_telemetry=False))
-        self.collection = self.chroma_client.create_collection(name=name, embedding_function=embedder)
+        self.collection = self.chroma_client.create_collection(name=name, embedding_function=self.embedder)
         self.ids = []
 
     def add(self, texts: list[str]):
@@ -85,7 +95,7 @@ class ChromaCollector():
     def clear(self):
         self.ids = []
         self.chroma_client.delete_collection(name=self.name)
-        self.collection = self.chroma_client.create_collection(name=self.name, embedding_function=embedder)
+        self.collection = self.chroma_client.create_collection(name=self.name, embedding_function=self.embedder)
 
 
 def make_collector():

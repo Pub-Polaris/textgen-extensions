@@ -1,12 +1,14 @@
-# ================= 配置 =================
-# 在这里指定你想使用的嵌入模型（HuggingFace 模型名或本地路径）
-EMBEDDING_MODEL_NAME = "sentence-transformers/all-mpnet-base-v2"
-# 例如：
-# EMBEDDING_MODEL_NAME = "BAAI/bge-large-zh-v1.5"
-# EMBEDDING_MODEL_NAME = "/path/to/your/local/model"
-# ========================================
+# ================= 嵌入模型配置 =================
+# 默认使用本地 BGE-M3（user_data/emb/bge-m3），由 extensions.embedding_source 装配：
+#   1. 本地目录完整 -> 直接用，不联网、不测速；
+#   2. 只有裸权重 user_data/models/bge-m3.safetensors -> 硬链接复用，只补下小文件；
+#   3. 什么都没有 -> 先对三个来源测速，再从最快的那个下载
+#      （huggingface / 魔搭 ModelScope / hf-mirror，硬编码，失败自动顺延）。
+# 想换成别的模型：环境变量 TEXTGEN_EMBEDDING_MODEL=模型名或本地路径。
+# ===============================================
 
 import math
+import os
 import random
 import threading
 
@@ -18,8 +20,12 @@ from chromadb.config import Settings
 from chromadb.utils import embedding_functions
 
 import extensions.superboogav2.parameters as parameters
+from extensions.embedding_source import ensure_embedding_model
 from modules.logging_colors import logger
 from modules.text_generation import decode, encode
+
+#: 为 None 时使用本地 BGE-M3（由 extensions.embedding_source 解析）
+EMBEDDING_MODEL_NAME = os.environ.get("TEXTGEN_EMBEDDING_MODEL")
 
 # Intercept calls to posthog
 posthog.capture = lambda *args, **kwargs: None
@@ -90,8 +96,11 @@ class ChromaCollector():
         # 设备回退规则：XPU -> CPU（不再检测 CUDA）
         device = "xpu" if hasattr(torch, "xpu") and torch.xpu.is_available() else "cpu"
 
+        # 嵌入模型：本地 BGE-M3 优先；缺失时才测速并从镜像回退下载
+        model_name = EMBEDDING_MODEL_NAME or ensure_embedding_model()
+
         self.embedder = embedding_functions.SentenceTransformerEmbeddingFunction(
-            EMBEDDING_MODEL_NAME,
+            model_name,
             device=device,
         )
 
