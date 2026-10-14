@@ -101,12 +101,20 @@ TypeError: argument should be a str or an os.PathLike object where __fspath__ re
 
 `superboogav2/chat_handler.py::_get_names` 的改动：
 
-- `state.get('character', default)` → `state.get('character') or default`，让 `None` 也走回退
-- 给 `load_character_memoized` 加 `try/except`：角色文件缺失时 `load_character` 会 `raise ValueError`，现在降级用 state 里的名字，不再打断整轮推理
+1. **快路径**：`state['name1']` / `state['name2']` 都可用时直接返回。UI 与兼容端点都会把规范化的名字写进 state，没必要再读角色文件。这同时消掉了每轮推理的额外 I/O —— `load_character` 会删除并重建角色头像缓存（`generate_pfp_cache`）并重新解析一遍角色 YAML，而 `load_character_memoized` 其实**并没有 memoize**（`@functools.cache` 挂在下一个函数 `load_instruction_template_memoized` 上）。
+2. **慢路径**（名字不全时才走）：`state.get('character', default)` → `state.get('character') or default`，让值为 `None` 也走回退；并给 `load_character_memoized` 加 `try/except`，角色文件缺失（`load_character` 会 `raise ValueError`）时降级用已有名字，不再打断整轮推理。
 
-实测（真实 `chat_handler` + 真实角色文件）：`character=None` 由 `TypeError` 变为正常返回；角色文件缺失由 `ValueError` 变为优雅降级。
+实测（真实 `chat_handler` + 真实角色文件，并计数 `load_character` 调用）：
 
-> 遗留：`_get_names` 每次都调用 `load_character`，而后者会删除并重建 pfp 缓存（`generate_pfp_cache`）。纯 API 场景下这是多余的 I/O，本次未改。
+| state | 返回 | `load_character` 调用 |
+|---|---|---|
+| `{'character': None, 'name1': 'You', 'name2': 'Assistant'}` | `('You', 'Assistant')` | 0 |
+| `{'name1': 'You', 'name2': 'Assistant'}` | `('You', 'Assistant')` | 0 |
+| `{'character': 'NoSuchChar', 'name1': 'You', 'name2': 'FB'}` | `('You', 'FB')` | 0 |
+| `{'name1': 'You', 'character': 'Assistant'}` | `('You', 'Assistant')` | 1 |
+| `{'character': 'NoSuchChar'}` | `('You', 'NoSuchChar')` | 1（优雅降级） |
+
+顺带修掉一个名字来源不一致：兼容端点在未传 `character` 时用的是 `shared.default_settings['character']`（`Assistant`），而旧代码回退用的是 `shared.settings['character']`，导致喂给 RAG 的历史文本人名与实际对话对象不符。现在直接用 state 里已解析好的名字。
 
 ## 注意事项
 
